@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Configuration;
+using Historical1.Models;
 
 namespace Historical1
 {
@@ -15,7 +16,8 @@ namespace Historical1
         static void Main(string[] args)
         {
             var spx = ReadFile<Index>(ConfigurationManager.AppSettings["spxDataFile"]);
-            
+            var vix = ReadFile<Vix>(ConfigurationManager.AppSettings["vixDataFile"]);
+            var vol = ReadFile<Volume>(ConfigurationManager.AppSettings["volumeDataFile"]);
 
             foreach (var record in spx.Take(5))
             {

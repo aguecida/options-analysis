@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Historical1
+namespace Historical1.Models
 {
     public class Index
     {
