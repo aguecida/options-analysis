@@ -18,13 +18,6 @@ namespace Historical1
             var spx = ReadFile<Index>(ConfigurationManager.AppSettings["spxDataFile"]);
             var vix = ReadFile<Vix>(ConfigurationManager.AppSettings["vixDataFile"]);
             var vol = ReadFile<Volume>(ConfigurationManager.AppSettings["volumeDataFile"]);
-
-            foreach (var record in spx.Take(5))
-            {
-                Console.WriteLine("{0}, {1}, {2}, {3}", record.Date, record.Open, record.Close, record.Volume);
-            }
-
-            Thread.Sleep(5000);
         }
 
         public static IEnumerable<T> ReadFile<T>(string path)
