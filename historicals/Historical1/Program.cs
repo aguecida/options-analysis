@@ -17,13 +17,37 @@ namespace Historical1
 
         static void Main(string[] args)
         {
-            var spx = ReadFile<Index>(spxPriceDaily);
-            var vix = ReadFile<Vix>(vixDaily);
-            var vol = ReadFile<Volume>(volumeDaily);
+            Console.WriteLine("Starting analysis.");
+
+            var spx = ReadFile<Index>(spxPriceDaily).OrderBy(x => x.Date);
+            var vix = ReadFile<Vix>(vixDaily).OrderBy(x => x.Date);
+            var vol = ReadFile<Volume>(volumeDaily).OrderBy(x => x.Date);
+
+            if (spx.First().Date != vix.First().Date && spx.First().Date != vol.First().Date && spx.First().Date != vix.First().Date)
+            {
+                Console.WriteLine("ERROR: Start date of records do not match.");
+            }
+
+            for (var i = 0; i < vol.Count(); i++)
+            {
+                if (i < 15)
+                    continue;
+
+                double vroc = GetVROC(vol, i, 15);
+
+                if (vroc > 100)
+                {
+                    Console.WriteLine("VROC at {0} on {1}", vroc, vol.ElementAt(i).Date);
+                }
+            }
+
+            Console.WriteLine("Analysis complete.");
+            Console.WriteLine("\nPress any key to exit.");
+            Console.ReadKey();
         }
 
         /// <summary>
-        /// Reads contents of a file into a List
+        /// Reads contents of a csv file into a List
         /// </summary>
         /// <typeparam name="T">Type of data file</typeparam>
         /// <param name="path">Path to a data file</param>
@@ -36,6 +60,21 @@ namespace Historical1
                 IEnumerable<T> records = reader.GetRecords<T>().ToList();
                 return records;
             }
+        }
+
+        /// <summary>
+        /// Calculates the colume rate of change over n periods
+        /// </summary>
+        /// <param name="vol">Volume data</param>
+        /// <param name="index">Current index of volume data</param>
+        /// <param name="period">Period, in days, for calculating rate of change</param>
+        /// <returns></returns>
+        public static double GetVROC(IEnumerable<Volume> vol, int index, int period)
+        {
+            var currVol = (double)vol.ElementAt(index).TotalVolume;
+            var prevVol = (double)vol.ElementAt(index - period).TotalVolume;
+
+            return ((currVol - prevVol) / prevVol) * 100;
         }
     }
 }
