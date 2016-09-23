@@ -19,23 +19,29 @@ namespace Historical1
         {
             Console.WriteLine("Starting analysis.");
 
+            // Parse analysis arguments
+            AnalysisParameters param = ParseInputArguments(args);
+
+            // Read data files into Lists
             var spx = ReadFile<Index>(spxPriceDaily).OrderBy(x => x.Date);
             var vix = ReadFile<Vix>(vixDaily).OrderBy(x => x.Date);
             var vol = ReadFile<Volume>(volumeDaily).OrderBy(x => x.Date);
 
+            // Make sure data files are starting at a common date
             if (spx.First().Date != vix.First().Date && spx.First().Date != vol.First().Date && spx.First().Date != vix.First().Date)
             {
                 Console.WriteLine("ERROR: Start date of records do not match.");
             }
 
+            // Calculate VROC for each data entry
             for (var i = 0; i < vol.Count(); i++)
             {
-                if (i < 15)
+                if (i < param.VrocPeriod)
                     continue;
 
-                double vroc = GetVROC(vol, i, 15);
+                double vroc = GetVROC(vol, i, param.VrocPeriod);
 
-                if (vroc > 100)
+                if (vroc > param.VrocThreshold)
                 {
                     Console.WriteLine("VROC at {0} on {1}", vroc, vol.ElementAt(i).Date);
                 }
@@ -75,6 +81,28 @@ namespace Historical1
             var prevVol = (double)vol.ElementAt(index - period).TotalVolume;
 
             return ((currVol - prevVol) / prevVol) * 100;
+        }
+
+        public static AnalysisParameters ParseInputArguments(string[] args)
+        {
+            AnalysisParameters param = new AnalysisParameters();
+
+            // Get VROC period
+            if (args.Length > 0)
+            {
+                param.VrocPeriod = Convert.ToInt32(args[0]);
+            }
+
+            if (args.Length > 1)
+            {
+                param.VrocThreshold = Convert.ToDouble(args[1]);
+            }
+
+            Console.WriteLine("\nAnalysis parameters:");
+            Console.WriteLine("VROC period (in days) = {0}", param.VrocPeriod);
+            Console.WriteLine("VROC threshold (percentage) = {0}\n", param.VrocThreshold);
+
+            return param;
         }
     }
 }
