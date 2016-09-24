@@ -1,6 +1,7 @@
 ﻿using CsvHelper;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -18,6 +19,8 @@ namespace Historical1
         static void Main(string[] args)
         {
             Console.WriteLine("Starting analysis.");
+
+            var watch = Stopwatch.StartNew();
 
             // Parse analysis arguments
             AnalysisParameters param = ParseInputArguments(args);
@@ -47,7 +50,9 @@ namespace Historical1
                 }
             }
 
-            Console.WriteLine("Analysis complete.");
+            watch.Stop();
+
+            Console.WriteLine("Analysis complete. Total execution time: {0}ms", watch.ElapsedMilliseconds);
             Console.WriteLine("\nPress any key to exit.");
             Console.ReadKey();
         }
@@ -93,6 +98,7 @@ namespace Historical1
                 param.VrocPeriod = Convert.ToInt32(args[0]);
             }
 
+            // Get VROC threshold
             if (args.Length > 1)
             {
                 param.VrocThreshold = Convert.ToDouble(args[1]);
