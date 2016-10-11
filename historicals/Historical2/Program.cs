@@ -1,7 +1,10 @@
-﻿using System;
+﻿using CsvHelper;
+using Historical2.Models;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,24 +28,21 @@ namespace Historical2
             var spx = ReadFile<Index>(spxPriceDaily).OrderBy(x => x.Date);
 
             // Make sure data files are starting at a common date
-            if (spx.First().Date != vix.First().Date && spx.First().Date != vol.First().Date && spx.First().Date != vix.First().Date)
-            {
-                Console.WriteLine("ERROR: Start date of records do not match.");
-            }
+            //if (spx.First().Date != vix.First().Date && spx.First().Date != vol.First().Date && spx.First().Date != vix.First().Date)
+            //{
+            //    Console.WriteLine("ERROR: Start date of records do not match.");
+            //}
+            int count = 0;
 
-            // Calculate VROC for each data entry
-            for (var i = 0; i < vol.Count(); i++)
+            for (var i = 0; i < spx.Count(); i++)
             {
-                if (i < param.VrocPeriod)
+                if (DateTime.Compare(spx.ElementAt(i).Date, param.StartDate) < 0)
                     continue;
 
-                double vroc = GetVROC(vol, i, param.VrocPeriod);
-
-                if (vroc > param.VrocThreshold)
-                {
-                    Console.WriteLine("VROC at {0} on {1}", vroc, vol.ElementAt(i).Date);
-                }
+                count++;
             }
+
+            Console.WriteLine("{0}", count);
 
             watch.Stop();
 
@@ -67,42 +67,22 @@ namespace Historical2
             }
         }
 
-        /// <summary>
-        /// Calculates the colume rate of change over n periods
-        /// </summary>
-        /// <param name="vol">Volume data</param>
-        /// <param name="index">Current index of volume data</param>
-        /// <param name="period">Period, in days, for calculating rate of change</param>
-        /// <returns></returns>
-        public static double GetVROC(IEnumerable<Volume> vol, int index, int period)
-        {
-            var currVol = (double)vol.ElementAt(index).TotalVolume;
-            var prevVol = (double)vol.ElementAt(index - period).TotalVolume;
-
-            return ((currVol - prevVol) / prevVol) * 100;
-        }
-
         public static AnalysisParameters ParseInputArguments(string[] args)
         {
             AnalysisParameters param = new AnalysisParameters();
 
-            // Get VROC period
+            // Get Start date of analysis
             if (args.Length > 0)
             {
-                param.VrocPeriod = Convert.ToInt32(args[0]);
+                param.StartDate = Convert.ToDateTime(args[0]);
             }
 
-            // Get VROC threshold
-            if (args.Length > 1)
-            {
-                param.VrocThreshold = Convert.ToDouble(args[1]);
-            }
 
             Console.WriteLine("\nAnalysis parameters:");
-            Console.WriteLine("VROC period (in days) = {0}", param.VrocPeriod);
-            Console.WriteLine("VROC threshold (percentage) = {0}\n", param.VrocThreshold);
+            Console.WriteLine("Start date = {0}", param.StartDate);
 
             return param;
         }
+
     }
 }
