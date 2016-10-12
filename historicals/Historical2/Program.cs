@@ -13,41 +13,67 @@ namespace Historical2
 {
     class Program
     {
-        private static string spxPriceDaily = ConfigurationManager.AppSettings["spxDataFile"];
+        private static readonly string SpxPriceDaily = ConfigurationManager.AppSettings["spxDataFile"];
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Starting analysis.");
+            Console.WriteLine("Starting analysis");
 
             var watch = Stopwatch.StartNew();
 
-            // Parse analysis arguments
-            AnalysisParameters param = ParseInputArguments(args);
-
             // Read data files into Lists
-            var spx = ReadFile<Index>(spxPriceDaily).OrderBy(x => x.Date);
+            var spx = ReadFile<Index>(SpxPriceDaily);
 
-            // Make sure data files are starting at a common date
-            //if (spx.First().Date != vix.First().Date && spx.First().Date != vol.First().Date && spx.First().Date != vix.First().Date)
-            //{
-            //    Console.WriteLine("ERROR: Start date of records do not match.");
-            //}
-            int count = 0;
+            int? expirationDay = null;
+            Index expiration = null;
+            Index open = null;
+            double periodHigh = 0;
+            double periodLow = 0;
+            bool foundFirstExpiration = false;
 
-            for (var i = 0; i < spx.Count(); i++)
+            foreach (var day in spx)
             {
-                if (DateTime.Compare(spx.ElementAt(i).Date, param.StartDate) < 0)
-                    continue;
+                if (expirationDay != null)
+                {
+                    open = day;
+                    expirationDay = null;
+                    periodHigh = day.High;
+                    periodLow = day.Low;
+                }
+                else
+                {
+                    if (day.High > periodHigh)
+                    {
+                        periodHigh = day.High;
+                    }
 
-                count++;
+                    if (day.Low < periodLow)
+                    {
+                        periodLow = day.Low;
+                    }
+                }
+
+                if (day.Date.Day >= 15 && day.Date.Day <= 21 && day.Date.DayOfWeek == DayOfWeek.Friday)
+                {
+                    expiration = day;
+                    expirationDay = day.Date.Day;
+
+                    if (foundFirstExpiration)
+                    {
+                        Console.WriteLine("Expiration: {0}, High: {1}, Low: {2}, Spread: {3}",
+                            expiration.Date.ToString("dd/MM/yyyy"), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(periodHigh - periodLow, 2));
+                    }
+                    else
+                    {
+                        foundFirstExpiration = true;
+                    }
+                }
             }
-
-            Console.WriteLine("{0}", count);
 
             watch.Stop();
 
             Console.WriteLine("Analysis complete. Total execution time: {0}ms", watch.ElapsedMilliseconds);
-            Console.WriteLine("\nPress any key to exit.");
+            Console.WriteLine("\nPress any key to exit");
             Console.ReadKey();
         }
 
@@ -66,23 +92,5 @@ namespace Historical2
                 return records;
             }
         }
-
-        public static AnalysisParameters ParseInputArguments(string[] args)
-        {
-            AnalysisParameters param = new AnalysisParameters();
-
-            // Get Start date of analysis
-            if (args.Length > 0)
-            {
-                param.StartDate = Convert.ToDateTime(args[0]);
-            }
-
-
-            Console.WriteLine("\nAnalysis parameters:");
-            Console.WriteLine("Start date = {0}", param.StartDate);
-
-            return param;
-        }
-
     }
 }
