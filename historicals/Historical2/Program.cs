@@ -35,6 +35,14 @@ namespace Historical2
             bool foundFirstExpiration = false;
             bool foundExpiration = false;
 
+            int totalExpirations = 0;
+            int totalPositiveSpreads = 0;
+            int spreadsUnder100 = 0;
+            int spreadsUnder80 = 0;
+            int spreadsUnder60 = 0;
+            int spreadsUnder40 = 0;
+            int spreadsUnder20 = 0;
+
             foreach (var day in spx)
             {
                 if (day.Date.Day >= 1 && day.Date.Day <= 7)
@@ -82,10 +90,44 @@ namespace Historical2
 
                         if (foundFirstExpiration)
                         {
+                            totalExpirations++;
+                            
                             double expirePrice = settlePrices.Single(x => x.Date == expiration.Date).SettlePrice;
 
+                            double spread = Math.Round(expirePrice - start.Open, 2);
+
+                            if (spread > 0)
+                            {
+                                totalPositiveSpreads++;
+                            }
+
+                            if (Math.Abs(spread) < 100)
+                            {
+                                spreadsUnder100++;
+                            }
+
+                            if (Math.Abs(spread) < 80)
+                            {
+                                spreadsUnder80++;
+                            }
+
+                            if (Math.Abs(spread) < 60)
+                            {
+                                spreadsUnder60++;
+                            }
+
+                            if (Math.Abs(spread) < 40)
+                            {
+                                spreadsUnder40++;
+                            }
+
+                            if (Math.Abs(spread) < 20)
+                            {
+                                spreadsUnder20++;
+                            }
+
                             Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3}, Low: {4}, Expiry Price: {5}, Spread: {6}",
-                                expiration.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirePrice, 2), Math.Round(Math.Abs(expirePrice - start.Open), 2));
+                                expiration.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirePrice, 2), Math.Round(expirePrice - start.Open, 2));
                         }
                         else
                         {
@@ -102,10 +144,44 @@ namespace Historical2
 
                     if (foundFirstExpiration)
                     {
+                        totalExpirations++;
+
                         double expirePrice = settlePrices.Single(x => x.Date == expirationThursday.Date).SettlePrice;
 
+                        double spread = Math.Round(expirePrice - start.Open, 2);
+
+                        if (spread > 0)
+                        {
+                            totalPositiveSpreads++;
+                        }
+
+                        if (Math.Abs(spread) < 100)
+                        {
+                            spreadsUnder100++;
+                        }
+
+                        if (Math.Abs(spread) < 80)
+                        {
+                            spreadsUnder80++;
+                        }
+
+                        if (Math.Abs(spread) < 60)
+                        {
+                            spreadsUnder60++;
+                        }
+
+                        if (Math.Abs(spread) < 40)
+                        {
+                            spreadsUnder40++;
+                        }
+
+                        if (Math.Abs(spread) < 20)
+                        {
+                            spreadsUnder20++;
+                        }
+
                         Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3}, Low: {4}, Expiry Price: {5}, Spread: {6}",
-                            expirationThursday.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirePrice, 2), Math.Round(Math.Abs(expirePrice - start.Open), 2));
+                            expirationThursday.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirePrice, 2), Math.Round(expirePrice - start.Open, 2));
                     }
                     else
                     {
@@ -115,6 +191,14 @@ namespace Historical2
             }
 
             watch.Stop();
+
+            Console.WriteLine("\nTotal expirations: {0}", totalExpirations);
+            Console.WriteLine("\nPercentage of positive spreads: {0}%", Decimal.Divide(totalPositiveSpreads, totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 100: {0}%", Decimal.Divide(spreadsUnder100, totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 80: {0}%", Decimal.Divide(spreadsUnder80, totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 60: {0}%", Decimal.Divide(spreadsUnder60, totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 40: {0}%", Decimal.Divide(spreadsUnder40, totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 20: {0}%", Decimal.Divide(spreadsUnder20, totalExpirations) * 100);
 
             Console.WriteLine("Analysis complete. Total execution time: {0}ms", watch.ElapsedMilliseconds);
             Console.WriteLine("\nPress any key to exit");
