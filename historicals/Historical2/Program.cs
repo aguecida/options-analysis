@@ -14,6 +14,7 @@ namespace Historical2
     class Program
     {
         private static readonly string SpxPriceDaily = ConfigurationManager.AppSettings["spxDataFile"];
+        private static readonly string SpxSettlePrices = ConfigurationManager.AppSettings["spxSettleFile"];
 
         static void Main(string[] args)
         {
@@ -23,6 +24,7 @@ namespace Historical2
 
             // Read data files into Lists
             var spx = ReadFile<Index>(SpxPriceDaily).OrderBy(x => x.Date);
+            var settlePrices = ReadFile<SettlePrices>(SpxSettlePrices).OrderBy(x => x.Date);
 
             int? expirationDay = null;
             Index expiration = null;
@@ -80,8 +82,10 @@ namespace Historical2
 
                         if (foundFirstExpiration)
                         {
+                            double expirePrice = settlePrices.Single(x => x.Date == expiration.Date).SettlePrice;
+
                             Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3}, Low: {4}, Expiry Price: {5}, Spread: {6}",
-                                expiration.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expiration.Open, 2), Math.Round(Math.Abs(expiration.Open - start.Open), 2));
+                                expiration.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirePrice, 2), Math.Round(Math.Abs(expirePrice - start.Open), 2));
                         }
                         else
                         {
@@ -98,8 +102,10 @@ namespace Historical2
 
                     if (foundFirstExpiration)
                     {
+                        double expirePrice = settlePrices.Single(x => x.Date == expirationThursday.Date).SettlePrice;
+
                         Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3}, Low: {4}, Expiry Price: {5}, Spread: {6}",
-                            expirationThursday.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirationThursday.Open, 2), Math.Round(Math.Abs(expirationThursday.Open - start.Open), 2));
+                            expirationThursday.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirePrice, 2), Math.Round(Math.Abs(expirePrice - start.Open), 2));
                     }
                     else
                     {
