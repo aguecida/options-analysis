@@ -6,8 +6,6 @@ using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Historical2
 {
@@ -22,6 +20,8 @@ namespace Historical2
 
             var watch = Stopwatch.StartNew();
 
+            AnalysisParameters parameters = new AnalysisParameters();
+
             // Read data files into Lists
             var spx = ReadFile<Index>(SpxPriceDaily).OrderBy(x => x.Date);
             var settlePrices = ReadFile<SettlePrices>(SpxSettlePrices).OrderBy(x => x.Date);
@@ -30,10 +30,14 @@ namespace Historical2
             Index expiration = null;
             Index expirationThursday = null;
             Index start = null;
-            double periodHigh = 0;
-            double periodLow = 0;
+            double periodHighPrice = 0;
+            Index periodHigh = null;
+            double periodLowPrice = 0;
+            Index periodLow = null;
             bool foundFirstExpiration = false;
             bool foundExpiration = false;
+            Index biggestMove = null;
+            double biggestMoveAmount = 0;
 
             int totalExpirations = 0;
             int totalPositiveSpreads = 0;
@@ -45,6 +49,11 @@ namespace Historical2
 
             foreach (var day in spx)
             {
+                if (DateTime.Compare(day.Date, parameters.StartDate) < 0)
+                {
+                    continue;
+                }
+
                 if (day.Date.Day >= 1 && day.Date.Day <= 7)
                 {
                     // Reset foundExpiration flag during first week of the month
@@ -55,19 +64,31 @@ namespace Historical2
                 {
                     start = day;
                     expirationDay = null;
-                    periodHigh = day.High;
-                    periodLow = day.Low;
+                    periodHighPrice = day.High;
+                    periodHigh = day;
+                    periodLowPrice = day.Low;
+                    periodLow = day;
+                    biggestMove = day;
+                    biggestMoveAmount = Math.Abs(day.Open - day.Close);
                 }
                 else
                 {
-                    if (day.High > periodHigh)
+                    if (day.High > periodHighPrice)
                     {
-                        periodHigh = day.High;
+                        periodHighPrice = day.High;
+                        periodHigh = day;
                     }
 
-                    if (day.Low < periodLow)
+                    if (day.Low < periodLowPrice)
                     {
-                        periodLow = day.Low;
+                        periodLowPrice = day.Low;
+                        periodLow = day;
+                    }
+
+                    if (Math.Abs(day.Open - day.Close) > biggestMoveAmount)
+                    {
+                        biggestMove = day;
+                        biggestMoveAmount = Math.Abs(day.Open - day.Close);
                     }
                 }
 
@@ -126,8 +147,8 @@ namespace Historical2
                                 spreadsUnder20++;
                             }
 
-                            Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3}, Low: {4}, Expiry Price: {5}, Spread: {6}",
-                                expiration.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirePrice, 2), Math.Round(expirePrice - start.Open, 2));
+                            Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3} on {4}, Low: {5} on {6}, Expiry Price: {7}, Spread: {8}, Biggest Move (Open to Close): {9} on {10}",
+                                expiration.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHighPrice, 2), periodHigh.Date.ToString("dd/MM/yyyy"), Math.Round(periodLowPrice, 2), periodLow.Date.ToString("dd/MM/yyyy"), Math.Round(expirePrice, 2), Math.Round(expirePrice - start.Open, 2), Math.Round(biggestMoveAmount, 2), biggestMove.Date.ToString("dd/MM/yyyy"));
                         }
                         else
                         {
@@ -180,8 +201,8 @@ namespace Historical2
                             spreadsUnder20++;
                         }
 
-                        Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3}, Low: {4}, Expiry Price: {5}, Spread: {6}",
-                            expirationThursday.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHigh, 2), Math.Round(periodLow, 2), Math.Round(expirePrice, 2), Math.Round(expirePrice - start.Open, 2));
+                        Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3} on {4}, Low: {5} on {6}, Expiry Price: {7}, Spread: {8}, Biggest Move (Open to Close): {9} on {10}",
+                            expirationThursday.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHighPrice, 2), periodHigh.Date.ToString("dd/MM/yyyy"), Math.Round(periodLowPrice, 2), periodHigh.Date.ToString("dd/MM/yyyy"), Math.Round(expirePrice, 2), Math.Round(expirePrice - start.Open, 2), Math.Round(biggestMoveAmount, 2), biggestMove.Date.ToString("dd/MM/yyyy"));
                     }
                     else
                     {

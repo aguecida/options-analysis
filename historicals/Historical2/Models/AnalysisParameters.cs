@@ -12,7 +12,7 @@ namespace Historical2.Models
 
         public AnalysisParameters()
         {
-            StartDate = new DateTime(2000, 1, 1);
+            StartDate = new DateTime(2010, 1, 1);
         }
     }
 }
