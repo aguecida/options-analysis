@@ -14,6 +14,15 @@ namespace Historical2
         private static readonly string SpxPriceDaily = ConfigurationManager.AppSettings["spxDataFile"];
         private static readonly string SpxSettlePrices = ConfigurationManager.AppSettings["spxSettleFile"];
 
+        // Analysis stats
+        private static int _totalExpirations;
+        private static int _totalPositiveSpreads;
+        private static int _spreadsUnder100;
+        private static int _spreadsUnder80;
+        private static int _spreadsUnder60;
+        private static int _spreadsUnder40;
+        private static int _spreadsUnder20;
+
         static void Main(string[] args)
         {
             Console.WriteLine("Starting analysis");
@@ -27,25 +36,15 @@ namespace Historical2
             var settlePrices = ReadFile<SettlePrices>(SpxSettlePrices).OrderBy(x => x.Date);
 
             int? expirationDay = null;
-            Index expiration = null;
+            Index expiration;
             Index expirationThursday = null;
             Index start = null;
-            double periodHighPrice = 0;
             Index periodHigh = null;
-            double periodLowPrice = 0;
             Index periodLow = null;
             bool foundFirstExpiration = false;
             bool foundExpiration = false;
             Index biggestMove = null;
             double biggestMoveAmount = 0;
-
-            int totalExpirations = 0;
-            int totalPositiveSpreads = 0;
-            int spreadsUnder100 = 0;
-            int spreadsUnder80 = 0;
-            int spreadsUnder60 = 0;
-            int spreadsUnder40 = 0;
-            int spreadsUnder20 = 0;
 
             foreach (var day in spx)
             {
@@ -62,26 +61,23 @@ namespace Historical2
 
                 if (expirationDay != null)
                 {
+                    // Symbolizes first day after expiration
                     start = day;
                     expirationDay = null;
-                    periodHighPrice = day.High;
                     periodHigh = day;
-                    periodLowPrice = day.Low;
                     periodLow = day;
                     biggestMove = day;
                     biggestMoveAmount = Math.Abs(day.Open - day.Close);
                 }
                 else
                 {
-                    if (day.High > periodHighPrice)
+                    if (periodHigh == null || day.High > periodHigh.High)
                     {
-                        periodHighPrice = day.High;
                         periodHigh = day;
                     }
 
-                    if (day.Low < periodLowPrice)
+                    if (periodLow == null || day.Low < periodLow.Low)
                     {
-                        periodLowPrice = day.Low;
                         periodLow = day;
                     }
 
@@ -101,6 +97,7 @@ namespace Historical2
                     }
                 }
 
+                // Try to find third Friday of the week (expiration day)
                 if (day.Date.Day >= 15 && day.Date.Day <= 21)
                 {
                     if (day.Date.DayOfWeek == DayOfWeek.Friday)
@@ -111,44 +108,10 @@ namespace Historical2
 
                         if (foundFirstExpiration)
                         {
-                            totalExpirations++;
-                            
                             double expirePrice = settlePrices.Single(x => x.Date == expiration.Date).SettlePrice;
-
                             double spread = Math.Round(expirePrice - start.Open, 2);
-
-                            if (spread > 0)
-                            {
-                                totalPositiveSpreads++;
-                            }
-
-                            if (Math.Abs(spread) < 100)
-                            {
-                                spreadsUnder100++;
-                            }
-
-                            if (Math.Abs(spread) < 80)
-                            {
-                                spreadsUnder80++;
-                            }
-
-                            if (Math.Abs(spread) < 60)
-                            {
-                                spreadsUnder60++;
-                            }
-
-                            if (Math.Abs(spread) < 40)
-                            {
-                                spreadsUnder40++;
-                            }
-
-                            if (Math.Abs(spread) < 20)
-                            {
-                                spreadsUnder20++;
-                            }
-
-                            Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3} on {4}, Low: {5} on {6}, Expiry Price: {7}, Spread: {8}, Biggest Move (Open to Close): {9} on {10}",
-                                expiration.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHighPrice, 2), periodHigh.Date.ToString("dd/MM/yyyy"), Math.Round(periodLowPrice, 2), periodLow.Date.ToString("dd/MM/yyyy"), Math.Round(expirePrice, 2), Math.Round(expirePrice - start.Open, 2), Math.Round(biggestMoveAmount, 2), biggestMove.Date.ToString("dd/MM/yyyy"));
+                            UpdateStats(spread);
+                            PrintIntervalStats(expiration, start, periodHigh, periodLow, biggestMove, expirePrice, biggestMoveAmount);
                         }
                         else
                         {
@@ -160,49 +123,21 @@ namespace Historical2
                 // If we are passed the third week and still have not found the Friday expiration (it was a holiday), expiration was on the preceeding Thursday
                 if (day.Date.Day > 21 && !foundExpiration)
                 {
+                    if (expirationThursday == null)
+                    {
+                        Console.WriteLine("Error in data: Could not find Thursday or Friday expiration");
+                        throw new Exception("Error in data: Could not find Thursday or Friday expiration");
+                    }
+
                     foundExpiration = true;
                     expirationDay = day.Date.Day;
 
                     if (foundFirstExpiration)
                     {
-                        totalExpirations++;
-
                         double expirePrice = settlePrices.Single(x => x.Date == expirationThursday.Date).SettlePrice;
-
                         double spread = Math.Round(expirePrice - start.Open, 2);
-
-                        if (spread > 0)
-                        {
-                            totalPositiveSpreads++;
-                        }
-
-                        if (Math.Abs(spread) < 100)
-                        {
-                            spreadsUnder100++;
-                        }
-
-                        if (Math.Abs(spread) < 80)
-                        {
-                            spreadsUnder80++;
-                        }
-
-                        if (Math.Abs(spread) < 60)
-                        {
-                            spreadsUnder60++;
-                        }
-
-                        if (Math.Abs(spread) < 40)
-                        {
-                            spreadsUnder40++;
-                        }
-
-                        if (Math.Abs(spread) < 20)
-                        {
-                            spreadsUnder20++;
-                        }
-
-                        Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3} on {4}, Low: {5} on {6}, Expiry Price: {7}, Spread: {8}, Biggest Move (Open to Close): {9} on {10}",
-                            expirationThursday.Date.ToString("dd/MM/yyyy"), start.Date.ToString("dd/MM/yyyy"), Math.Round(start.Open, 2), Math.Round(periodHighPrice, 2), periodHigh.Date.ToString("dd/MM/yyyy"), Math.Round(periodLowPrice, 2), periodHigh.Date.ToString("dd/MM/yyyy"), Math.Round(expirePrice, 2), Math.Round(expirePrice - start.Open, 2), Math.Round(biggestMoveAmount, 2), biggestMove.Date.ToString("dd/MM/yyyy"));
+                        UpdateStats(spread);
+                        PrintIntervalStats(expirationThursday, start, periodHigh, periodLow, biggestMove, expirePrice, biggestMoveAmount);
                     }
                     else
                     {
@@ -213,13 +148,7 @@ namespace Historical2
 
             watch.Stop();
 
-            Console.WriteLine("\nTotal expirations: {0}", totalExpirations);
-            Console.WriteLine("\nPercentage of positive spreads: {0}%", Decimal.Divide(totalPositiveSpreads, totalExpirations) * 100);
-            Console.WriteLine("\nPercentage of spreads under 100: {0}%", Decimal.Divide(spreadsUnder100, totalExpirations) * 100);
-            Console.WriteLine("\nPercentage of spreads under 80: {0}%", Decimal.Divide(spreadsUnder80, totalExpirations) * 100);
-            Console.WriteLine("\nPercentage of spreads under 60: {0}%", Decimal.Divide(spreadsUnder60, totalExpirations) * 100);
-            Console.WriteLine("\nPercentage of spreads under 40: {0}%", Decimal.Divide(spreadsUnder40, totalExpirations) * 100);
-            Console.WriteLine("\nPercentage of spreads under 20: {0}%", Decimal.Divide(spreadsUnder20, totalExpirations) * 100);
+            PrintFinalStats();
 
             Console.WriteLine("Analysis complete. Total execution time: {0}ms", watch.ElapsedMilliseconds);
             Console.WriteLine("\nPress any key to exit");
@@ -232,7 +161,7 @@ namespace Historical2
         /// <typeparam name="T">Type of data file</typeparam>
         /// <param name="path">Path to a data file</param>
         /// <returns>A list of daily records</returns>
-        public static IEnumerable<T> ReadFile<T>(string path)
+        private static IEnumerable<T> ReadFile<T>(string path)
         {
             using (var sr = new StreamReader(path))
             {
@@ -240,6 +169,77 @@ namespace Historical2
                 IEnumerable<T> records = reader.GetRecords<T>().ToList();
                 return records;
             }
+        }
+
+        /// <summary>
+        /// Update the running total of analysis stats
+        /// </summary>
+        /// <param name="spread">Price spread for the current interval</param>
+        private static void UpdateStats(double spread)
+        {
+            _totalExpirations++;
+
+            double absoluteSpread = Math.Abs(spread);
+
+            if (spread > 0)
+            {
+                _totalPositiveSpreads++;
+            }
+
+            if (absoluteSpread < 100)
+            {
+                _spreadsUnder100++;
+            }
+
+            if (absoluteSpread < 80)
+            {
+                _spreadsUnder80++;
+            }
+
+            if (absoluteSpread < 60)
+            {
+                _spreadsUnder60++;
+            }
+
+            if (absoluteSpread < 40)
+            {
+                _spreadsUnder40++;
+            }
+
+            if (absoluteSpread < 20)
+            {
+                _spreadsUnder20++;
+            }
+        }
+
+        /// <summary>
+        /// Print results for the current interval
+        /// </summary>
+        /// <param name="expiration">Expiration day</param>
+        /// <param name="intervalStart">Start day</param>
+        /// <param name="intervalHigh">Day when the interval high was recorded</param>
+        /// <param name="intervalLow">Day when the interval low was recorded</param>
+        /// <param name="biggestMove">Day when the biggest move in the interval was recorded</param>
+        /// <param name="expirePrice">Expire/settle price</param>
+        /// <param name="biggestMoveAmount">Amount of the biggest move (Open to Close) in a day during the interval</param>
+        private static void PrintIntervalStats(Index expiration, Index intervalStart, Index intervalHigh, Index intervalLow, Index biggestMove, double expirePrice, double biggestMoveAmount)
+        {
+            Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3} on {4}, Low: {5} on {6}, Expiry Price: {7}, Spread: {8}, Biggest Move (Open to Close): {9} on {10}",
+                expiration.Date.ToString("dd/MM/yyyy"), intervalStart.Date.ToString("dd/MM/yyyy"), Math.Round(intervalStart.Open, 2), Math.Round(intervalHigh.High, 2), intervalHigh.Date.ToString("dd/MM/yyyy"), Math.Round(intervalLow.Low, 2), intervalLow.Date.ToString("dd/MM/yyyy"), Math.Round(expirePrice, 2), Math.Round(expirePrice - intervalStart.Open, 2), Math.Round(biggestMoveAmount, 2), biggestMove.Date.ToString("dd/MM/yyyy"));
+        }
+
+        /// <summary>
+        /// Print the final stats of the analysis
+        /// </summary>
+        private static void PrintFinalStats()
+        {
+            Console.WriteLine("\nTotal expirations: {0}", _totalExpirations);
+            Console.WriteLine("\nPercentage of positive spreads: {0}%", Decimal.Divide(_totalPositiveSpreads, _totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 100: {0}%", Decimal.Divide(_spreadsUnder100, _totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 80: {0}%", Decimal.Divide(_spreadsUnder80, _totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 60: {0}%", Decimal.Divide(_spreadsUnder60, _totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 40: {0}%", Decimal.Divide(_spreadsUnder40, _totalExpirations) * 100);
+            Console.WriteLine("\nPercentage of spreads under 20: {0}%", Decimal.Divide(_spreadsUnder20, _totalExpirations) * 100);
         }
     }
 }
