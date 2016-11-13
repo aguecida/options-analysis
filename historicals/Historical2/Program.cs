@@ -67,7 +67,7 @@ namespace Historical2
                     periodHigh = day;
                     periodLow = day;
                     biggestMove = day;
-                    biggestMoveAmount = Math.Abs(day.Open - day.Close);
+                    biggestMoveAmount = day.Close - day.Open;
                 }
                 else
                 {
@@ -81,10 +81,10 @@ namespace Historical2
                         periodLow = day;
                     }
 
-                    if (Math.Abs(day.Open - day.Close) > biggestMoveAmount)
+                    if (Math.Abs(day.Close - day.Open) > Math.Abs(biggestMoveAmount))
                     {
                         biggestMove = day;
-                        biggestMoveAmount = Math.Abs(day.Open - day.Close);
+                        biggestMoveAmount = day.Close - day.Open;
                     }
                 }
 
@@ -221,10 +221,10 @@ namespace Historical2
         /// <param name="intervalLow">Day when the interval low was recorded</param>
         /// <param name="biggestMove">Day when the biggest move in the interval was recorded</param>
         /// <param name="expirePrice">Expire/settle price</param>
-        /// <param name="biggestMoveAmount">Amount of the biggest move (Open to Close) in a day during the interval</param>
+        /// <param name="biggestMoveAmount">Amount of the biggest move (Close - Open) in a day during the interval</param>
         private static void PrintIntervalStats(Index expiration, Index intervalStart, Index intervalHigh, Index intervalLow, Index biggestMove, double expirePrice, double biggestMoveAmount)
         {
-            Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3} on {4}, Low: {5} on {6}, Expiry Price: {7}, Spread: {8}, Biggest Move (Open to Close): {9} on {10}",
+            Console.WriteLine("Expiration Date: {0}, Start Date: {1}, Opening Price: {2}, High: {3} on {4}, Low: {5} on {6}, Expiry Price: {7}, Spread: {8}, Biggest Move (Close - Open): {9} on {10}",
                 expiration.Date.ToString("dd/MM/yyyy"), intervalStart.Date.ToString("dd/MM/yyyy"), Math.Round(intervalStart.Open, 2), Math.Round(intervalHigh.High, 2), intervalHigh.Date.ToString("dd/MM/yyyy"), Math.Round(intervalLow.Low, 2), intervalLow.Date.ToString("dd/MM/yyyy"), Math.Round(expirePrice, 2), Math.Round(expirePrice - intervalStart.Open, 2), Math.Round(biggestMoveAmount, 2), biggestMove.Date.ToString("dd/MM/yyyy"));
         }
 
