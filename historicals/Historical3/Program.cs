@@ -1,5 +1,5 @@
 ﻿using CsvHelper;
-using Historical2.Models;
+using Historical3.Models;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
-namespace Historical2
+namespace Historical3
 {
     class Program
     {
@@ -35,8 +35,7 @@ namespace Historical2
             var spx = ReadFile<Index>(SpxPriceDaily).OrderBy(x => x.Date);
             var settlePrices = ReadFile<SettlePrices>(SpxSettlePrices).OrderBy(x => x.Date);
 
-            int? expirationDay = null;
-            Index expiration;
+            Index expirationFriday;
             Index expirationThursday = null;
             Index start = null;
             Index periodHigh = null;
@@ -46,6 +45,21 @@ namespace Historical2
             Index biggestMove = null;
             double biggestMoveAmount = 0;
 
+            // Monday open stats
+            Index mondayOpen = null;
+            Index m_periodHigh = null;
+            Index m_periodLow = null;
+            Index m_biggestMove = null;
+            double m_biggestMoveAmount = 0;
+
+
+            // Tuesday open stats
+            Index tuesdayOpen = null;
+            Index t_periodHigh = null;
+            Index t_periodLow = null;
+            Index t_biggestMove = null;
+            double t_biggestMoveAmount = 0;
+
             foreach (var day in spx)
             {
                 if (DateTime.Compare(day.Date, parameters.StartDate) < 0)
@@ -53,38 +67,133 @@ namespace Historical2
                     continue;
                 }
 
+                // Reset some flags during first week of the month
                 if (day.Date.Day >= 1 && day.Date.Day <= 7)
                 {
-                    // Reset foundExpiration flag during first week of the month
                     foundExpiration = false;
+                    expirationThursday = null;
+                    mondayOpen = null;
+                    tuesdayOpen = null;
                 }
 
-                if (expirationDay != null)
+                if (mondayOpen != null)
                 {
-                    // Symbolizes first day after expiration
-                    start = day;
-                    expirationDay = null;
-                    periodHigh = day;
-                    periodLow = day;
-                    biggestMove = day;
-                    biggestMoveAmount = day.Close - day.Open;
+                    if (day.High > m_periodHigh.High)
+                    {
+                        m_periodHigh = day;
+                    }
+
+                    if (day.Low < m_periodLow.Low)
+                    {
+                        m_periodLow = day;
+                    }
+
+                    if (Math.Abs(day.Close - day.Open) > Math.Abs(m_biggestMoveAmount))
+                    {
+                        m_biggestMove = day;
+                        m_biggestMoveAmount = day.Close - day.Open;
+                    }
                 }
-                else
+
+                if (day.Date.Day >= 11 && day.Date.Day <= 17)
                 {
-                    if (periodHigh == null || day.High > periodHigh.High)
+                    if (day.Date.DayOfWeek == DayOfWeek.Monday)
                     {
-                        periodHigh = day;
+                        mondayOpen = day;
+                        m_periodHigh = day;
+                        m_periodLow = day;
+                        m_biggestMove = day;
+                        m_biggestMoveAmount = day.Close - day.Open;
+                    }
+                }
+
+                if (tuesdayOpen != null)
+                {
+                    if (day.High > t_periodHigh.High)
+                    {
+                        t_periodHigh = day;
                     }
 
-                    if (periodLow == null || day.Low < periodLow.Low)
+                    if (day.Low < t_periodLow.Low)
                     {
-                        periodLow = day;
+                        t_periodLow = day;
                     }
 
-                    if (Math.Abs(day.Close - day.Open) > Math.Abs(biggestMoveAmount))
+                    if (Math.Abs(day.Close - day.Open) > Math.Abs(t_biggestMoveAmount))
                     {
-                        biggestMove = day;
-                        biggestMoveAmount = day.Close - day.Open;
+                        t_biggestMove = day;
+                        t_biggestMoveAmount = day.Close - day.Open;
+                    }
+                }
+
+                if (day.Date.Day >= 12 && day.Date.Day <= 18)
+                {
+                    if (day.Date.DayOfWeek == DayOfWeek.Tuesday)
+                    {
+                        tuesdayOpen = day;
+                        t_periodHigh = day;
+                        t_periodLow = day;
+                        t_biggestMove = day;
+                        t_biggestMoveAmount = day.Close - day.Open;
+                    }
+                }
+
+                // Try to find third Friday of the month (expiration day)
+                if (day.Date.Day >= 15 && day.Date.Day <= 21 && !foundExpiration)
+                {
+                    if (expirationThursday != null && day.Date.DayOfWeek != DayOfWeek.Friday)
+                    {
+                        foundExpiration = true;
+                        
+                        if (foundFirstExpiration)
+                        {
+                            double expirePrice = settlePrices.Single(x => x.Date == expirationThursday.Date).SettlePrice;
+
+                            if (mondayOpen == null && tuesdayOpen == null)
+                            {
+                                throw new Exception("Error in data: Could not find Monday or Tuesday open");
+                            }
+
+                            double spread = mondayOpen != null ? Math.Round(expirePrice - mondayOpen.Open, 2) : Math.Round(expirePrice - tuesdayOpen.Open, 2);
+                            
+                            UpdateStats(spread);
+                            PrintIntervalStats(expirationThursday, mondayOpen ?? tuesdayOpen, mondayOpen != null ? m_periodHigh : t_periodHigh, mondayOpen != null ? m_periodLow : t_periodLow, mondayOpen != null ? m_biggestMove : t_biggestMove, expirePrice, mondayOpen != null ? m_biggestMoveAmount : t_biggestMoveAmount);
+                        }
+                        else
+                        {
+                            foundFirstExpiration = true;
+                        }
+
+                        mondayOpen = null;
+                        tuesdayOpen = null;
+                    }
+
+                    if (day.Date.DayOfWeek == DayOfWeek.Friday)
+                    {
+                        foundExpiration = true;
+                        
+                        expirationFriday = day;
+
+                        if (foundFirstExpiration)
+                        {
+                            double expirePrice = settlePrices.Single(x => x.Date == expirationFriday.Date).SettlePrice;
+
+                            if (mondayOpen == null && tuesdayOpen == null)
+                            {
+                                throw new Exception("Error in data: Could not find Monday or Tuesday open");
+                            }
+
+                            double spread = mondayOpen != null ? Math.Round(expirePrice - mondayOpen.Open, 2) : Math.Round(expirePrice - tuesdayOpen.Open, 2);
+                            UpdateStats(spread);
+                            PrintIntervalStats(expirationFriday, mondayOpen ?? tuesdayOpen, mondayOpen != null ? m_periodHigh : t_periodHigh, mondayOpen != null ? m_periodLow : t_periodLow, mondayOpen != null ? m_biggestMove : t_biggestMove, expirePrice, mondayOpen != null ? m_biggestMoveAmount : t_biggestMoveAmount);
+                        }
+                        else
+                        {
+                            foundFirstExpiration = true;
+                        }
+
+                        mondayOpen = null;
+                        tuesdayOpen = null;
                     }
                 }
 
@@ -94,54 +203,6 @@ namespace Historical2
                     if (day.Date.DayOfWeek == DayOfWeek.Thursday)
                     {
                         expirationThursday = day;
-                    }
-                }
-
-                // Try to find third Friday of the month (expiration day)
-                if (day.Date.Day >= 15 && day.Date.Day <= 21)
-                {
-                    if (day.Date.DayOfWeek == DayOfWeek.Friday)
-                    {
-                        foundExpiration = true;
-                        expiration = day;
-                        expirationDay = day.Date.Day;
-
-                        if (foundFirstExpiration)
-                        {
-                            double expirePrice = settlePrices.Single(x => x.Date == expiration.Date).SettlePrice;
-                            double spread = Math.Round(expirePrice - start.Open, 2);
-                            UpdateStats(spread);
-                            PrintIntervalStats(expiration, start, periodHigh, periodLow, biggestMove, expirePrice, biggestMoveAmount);
-                        }
-                        else
-                        {
-                            foundFirstExpiration = true;
-                        }
-                    }
-                }
-
-                // If we are passed the third week and still have not found the Friday expiration (it was a holiday), expiration was on the preceeding Thursday
-                if (day.Date.Day > 21 && !foundExpiration)
-                {
-                    if (expirationThursday == null)
-                    {
-                        Console.WriteLine("Error in data: Could not find Thursday or Friday expiration");
-                        throw new Exception("Error in data: Could not find Thursday or Friday expiration");
-                    }
-
-                    foundExpiration = true;
-                    expirationDay = day.Date.Day;
-
-                    if (foundFirstExpiration)
-                    {
-                        double expirePrice = settlePrices.Single(x => x.Date == expirationThursday.Date).SettlePrice;
-                        double spread = Math.Round(expirePrice - start.Open, 2);
-                        UpdateStats(spread);
-                        PrintIntervalStats(expirationThursday, start, periodHigh, periodLow, biggestMove, expirePrice, biggestMoveAmount);
-                    }
-                    else
-                    {
-                        foundFirstExpiration = true;
                     }
                 }
             }
